@@ -214,7 +214,7 @@ let all_tests = "Memcached tests" >::: [
 let _ =
     let pids = start_servers base_port nservers in
     (* Need to sleep so that all the server processes get a chance to start *)
-    Unix.select [] [] [] 0.1;
+    ignore(Unix.select [] [] [] 0.1);
     let results = run_test_tt all_tests in
     List.iter (fun pid -> stop_process pid) pids;
     results
