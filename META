@@ -1,0 +1,7 @@
+name = "memcached"
+version = "0.0.1"
+description = "Memcached - OCaml memcached client"
+
+requires = "unix, str"
+archive(byte) = "memcached.cma"
+archive(native) = "memcached.cmxa"

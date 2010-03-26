@@ -1,0 +1,101 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN">
+<html>
+<head>
+<link rel="stylesheet" href="style.css" type="text/css">
+<meta content="text/html; charset=iso-8859-1" http-equiv="Content-Type">
+<link rel="Start" href="index.html">
+<link rel="Up" href="index.html">
+<link title="Index of types" rel=Appendix href="index_types.html">
+<link title="Index of values" rel=Appendix href="index_values.html">
+<link title="Index of modules" rel=Appendix href="index_modules.html">
+<link title="Index of module types" rel=Appendix href="index_module_types.html">
+<link title="Memcached" rel="Chapter" href="Memcached.html"><link title="Generic interface" rel="Section" href="#2_Genericinterface">
+<link title="Functorial interface" rel="Section" href="#2_Functorialinterface">
+<title>Memcached</title>
+</head>
+<body>
+<div class="navbar">&nbsp;<a href="index.html">Up</a>
+&nbsp;</div>
+<center><h1>Module <a href="type_Memcached.html">Memcached</a></h1></center>
+<br>
+<pre><span class="keyword">module</span> Memcached: <code class="code"><span class="keyword">sig</span></code> <a href="Memcached.html">..</a> <code class="code"><span class="keyword">end</span></code></pre>OCaml client library for <a href="http://memcached.org/">memcached</a> distributed
+ in-memory key-value store.<br>
+<b>Author(s):</b> Atte Kojo<br>
+<b>Version:</b> 0.1<br>
+<hr width="100%">
+<br>
+<a name="2_Genericinterface"></a>
+<h2>Generic interface</h2><br>
+<br>
+This interface allows polymorphic access to memcached, but is not type-safe
+ because it uses the standard library
+ <a href="http://caml.inria.fr/pub/docs/manual-ocaml/libref/Marshal.html">Marshal</a>
+ module to serialize the values. Also, the use of Marshal means that the values
+ written to memcached via this interface are not interoperable with any other
+ client library. If you require type-safety or interoperability use the
+ functorial interface defined below.<br>
+<pre><span class="keyword">type</span> <a name="TYPEt"></a><code class="type">+'a</code> t </pre>
+
+<pre><span class="keyword">val</span> <a name="VALcreate"></a>create : <code class="type">unit -> 'a <a href="Memcached.html#TYPEt">t</a></code></pre><pre><span class="keyword">val</span> <a name="VALconnect"></a>connect : <code class="type">'a <a href="Memcached.html#TYPEt">t</a> -> string * int -> 'a <a href="Memcached.html#TYPEt">t</a></code></pre><pre><span class="keyword">val</span> <a name="VALdisconnect"></a>disconnect : <code class="type">'a <a href="Memcached.html#TYPEt">t</a> -> string * int -> 'a <a href="Memcached.html#TYPEt">t</a></code></pre><br>
+The main Memcached interface is a pretty much direct translation of the
+ memcached wire text protocol to OCaml.<br>
+<pre><span class="keyword">val</span> <a name="VALget"></a>get : <code class="type">'a <a href="Memcached.html#TYPEt">t</a> -> string -> 'a option</code></pre><div class="info">
+<code class="code"><span class="constructor">Memcached</span>.get cache key</code> reads a value previously stored with <code class="code">key</code> from
+ the database.<br>
+</div>
+<br>
+The storage functions <code class="code">set</code>, <code class="code">add</code> and <code class="code">replace</code> all return <code class="code"><span class="keyword">true</span></code> if the
+ value given as argument was succesfully stored, <code class="code"><span class="keyword">false</span></code> otherwise. All the
+ functions have an optional <code class="code">expires</code> parameter, expressed in seconds, for
+ setting the lifetime of the key-value binding. By default <code class="code">exipres</code> is <code class="code">0</code>,
+ meaning that the binding never expires.<br>
+<pre><span class="keyword">val</span> <a name="VALset"></a>set : <code class="type">'a <a href="Memcached.html#TYPEt">t</a> -> ?expires:int -> string -> 'a -> bool</code></pre><div class="info">
+<code class="code"><span class="constructor">Memcached</span>.set cache key value</code> binds <code class="code">value</code> to <code class="code">key</code>.<br>
+</div>
+<pre><span class="keyword">val</span> <a name="VALadd"></a>add : <code class="type">'a <a href="Memcached.html#TYPEt">t</a> -> ?expires:int -> string -> 'a -> bool</code></pre><div class="info">
+<code class="code"><span class="constructor">Memcached</span>.add cache key value</code> binds <code class="code">value</code> to <code class="code">key</code> only if there was no
+ previous binding for <code class="code">key</code>.<br>
+</div>
+<pre><span class="keyword">val</span> <a name="VALreplace"></a>replace : <code class="type">'a <a href="Memcached.html#TYPEt">t</a> -> ?expires:int -> string -> 'a -> bool</code></pre><div class="info">
+<code class="code"><span class="constructor">Memcached</span>.replace cache key value</code> binds <code class="code">value</code> to <code class="code">key</code> only if there was
+ a previous binding for <code class="code">key</code>.<br>
+</div>
+<pre><span class="keyword">val</span> <a name="VALdelete"></a>delete : <code class="type">'a <a href="Memcached.html#TYPEt">t</a> -> ?wait_time:int -> string -> bool</code></pre><div class="info">
+<code class="code"><span class="constructor">Memcached</span>.delete cache key</code> removes binding for <code class="code">key</code>. Optional <code class="code">wait_time</code>
+ parameter gives the time in seconds during which the binding will be held in a
+ delete queue. While the item is in the queue, <code class="code">get</code>, <code class="code">add</code> and <code class="code">replace</code> for
+ the key will fail. After <code class="code">wait_time</code> the binding will be permanently removed.
+ By default <code class="code">wait_time</code> is 0, meaning that the binding is deleted immediately.<br>
+</div>
+<pre><span class="keyword">val</span> <a name="VALincr"></a>incr : <code class="type">'a <a href="Memcached.html#TYPEt">t</a> -> string -> int -> int option</code></pre><div class="info">
+<code class="code"><span class="constructor">Memcached</span>.incr cache key amount</code> will increase the unsigned integer value
+ bound to <code class="code">key</code> by positive value <code class="code">amount</code>. It is an error to give negative
+ value to <code class="code">amount</code>.<br>
+</div>
+<pre><span class="keyword">val</span> <a name="VALdecr"></a>decr : <code class="type">'a <a href="Memcached.html#TYPEt">t</a> -> string -> int -> int option</code></pre><div class="info">
+<code class="code"><span class="constructor">Memcached</span>.decr cache key amount</code> will decrease the unsigned integer value
+ bound to <code class="code">key</code> by positive value <code class="code">amount</code>. It is an error to give negative
+ value to <code class="code">amount</code>. If decrementing the value would make it negative, it will be
+ limited to <code class="code">0</code>.<br>
+</div>
+<pre><span class="keyword">val</span> <a name="VALstats"></a>stats : <code class="type">'a <a href="Memcached.html#TYPEt">t</a> -> string * int -> (string * string) list</code></pre><div class="info">
+<code class="code"><span class="constructor">Memcached</span>.stats cache host port</code> will return current server statistics for
+ <code class="code">host</code> as a list of key-value pairs. Consult memcached protocol documentation
+ for details of the statistics returned.<br>
+</div>
+<pre><span class="keyword">val</span> <a name="VALhash"></a>hash : <code class="type">string -> int</code></pre><br>
+<a name="2_Functorialinterface"></a>
+<h2>Functorial interface</h2><br>
+<br>
+The <a href="Memcached.Make.html"><code class="code"><span class="constructor">Memcached</span>.<span class="constructor">Make</span></code></a> module allows type-safe access to memcached by
+ providing a means to define your own serialization/de-serialization functions.
+ This way you can utilize <code class="code"><span class="constructor">Sexplib</span></code>, for example, for serializing/de-serializing
+ your data in a language-agnostic format while guaranteeing that ill-formatted
+ data won't crash your runtime.<br>
+<pre><span class="keyword">module type</span> <a href="Memcached.Value.html">Value</a> = <code class="code"><span class="keyword">sig</span></code> <a href="Memcached.Value.html">..</a> <code class="code"><span class="keyword">end</span></code></pre><div class="info">
+The input signature of the functor <a href="Memcached.Make.html"><code class="code"><span class="constructor">Memcached</span>.<span class="constructor">Make</span></code></a>.
+</div>
+<pre><span class="keyword">module type</span> <a href="Memcached.S.html">S</a> = <code class="code"><span class="keyword">sig</span></code> <a href="Memcached.S.html">..</a> <code class="code"><span class="keyword">end</span></code></pre><div class="info">
+The output signature of the functor <a href="Memcached.Make.html"><code class="code"><span class="constructor">Memcached</span>.<span class="constructor">Make</span></code></a>.
+</div>
+<pre><span class="keyword">module</span> <a href="Memcached.Make.html">Make</a> <code class="code">(</code><code class="code"><span class="constructor">Value</span></code><code class="code"> : </code><code class="type"><a href="Memcached.Value.html">Value</a></code><code class="code">) </code>: <code class="type"><a href="Memcached.S.html">S</a></code><code class="type">  with type value = Value.t</code></pre></body></html>
