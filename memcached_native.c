@@ -1,5 +1,11 @@
 //-----------------------------------------------------------------------------
 // MurmurHash2, by Austin Appleby
+//
+// From the murmurhash www page:
+//
+// All code is released to the public domain. For business purposes, Murmurhash
+// is under the MIT license.
+// 
 
 // Note - This code makes a few assumptions about how your machine behaves -
 
