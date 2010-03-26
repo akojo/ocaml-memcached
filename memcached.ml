@@ -132,10 +132,15 @@ module Cnt = struct
         if (ConnMap.is_empty c.connections) then
             failwith "No servers"
         else
-            let hash = mm_hash2 key in
-            let cmp v h2 = compare v (fst h2) in
-            let idx = search cmp hash c.continuum in
-            snd c.continuum.(idx)
+            if Array.length c.continuum = c.nservers then
+                (* There's only one server in the continuum, just use it
+                 * instead of calculating the hash *)
+                snd c.continuum.(0)
+            else
+                let hash = mm_hash2 key in
+                let cmp v h2 = compare v (fst h2) in
+                let idx = search cmp hash c.continuum in
+                snd c.continuum.(idx)
 
     let find host c =
         ConnMap.find host c.connections
