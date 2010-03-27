@@ -1,0 +1,29 @@
+Installation instructions
+*************************
+
+Requirements: GNU make and findlib. For testing you need OUnit and a memcached
+installation.
+
+Installing
+----------
+
+This library uses OCamlMakefile for compilation, so building and installing the
+library is just as easy as 'make' and 'make install'. This will build both
+bytecode and native code versions of the library and installs them in the
+appropriate location using findlib.
+
+To change the compilation settings, look at the default settings in
+'OcamlMakefile' and change them as appropriate.
+
+Running the tests
+-----------------
+
+Thi uses OUnit for testing. To run the test suite, type 'make check' at the
+top-level source directory. Remember that you need to have 'memcached' in your
+path for the test to run.
+
+Uninstalling
+------------
+
+Just type 'make uninstall' at the top level and all files installed by 'make
+install' will be removed.
