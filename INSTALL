@@ -18,9 +18,9 @@ To change the compilation settings, look at the default settings in
 Running the tests
 -----------------
 
-Thi uses OUnit for testing. To run the test suite, type 'make check' at the
-top-level source directory. Remember that you need to have 'memcached' in your
-path for the test to run.
+This library uses OUnit for testing. To run the test suite, type 'make check'
+at the top-level source directory. Remember that you need to have 'memcached'
+in your path for the test to run.
 
 Uninstalling
 ------------
