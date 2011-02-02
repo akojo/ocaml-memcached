@@ -1,6 +1,7 @@
 export OCAMLMAKEFILE = OCamlMakefile
 export OCAMLDOCFLAGS = -colorize-code -short-functors
 
+ANNOTATE = 1
 LIBS = unix str
 SOURCES = memcached_native.c memcached.mli memcached.ml
 RESULT = memcached
