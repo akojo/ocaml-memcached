@@ -61,7 +61,7 @@ end
 (* The data structure holding the key-server mapping, i.e. the continuum. Uses
  * consistent hashing to map keys to servers to minimize the effect of
  * adding/removing servers. *)
-module Cnt = struct
+module Continuum = struct
     module ConnKey = struct
         type t = string * int
         let compare = Pervasives.compare
@@ -159,7 +159,7 @@ end) = struct
         output: out_channel;
     }
 
-    type 'a t = connection Cnt.t
+    type 'a t = connection Continuum.t
 
     let nservers = 200
 
@@ -201,7 +201,7 @@ end) = struct
         | None -> []
 
     let store cmd cache expires key data =
-        let conn = Cnt.connection_for key cache in
+        let conn = Continuum.connection_for key cache in
         let datastr = Value.to_string data in
         let len = String.length datastr in
         write_line conn (sprintf "%s %s 0 %d %d" cmd key expires len);
@@ -219,7 +219,7 @@ end) = struct
         | _ -> failwith cmd
 
     let arith cmd cache key value =
-        let conn = Cnt.connection_for key cache in
+        let conn = Continuum.connection_for key cache in
         write_line conn (sprintf "%s %s %d" cmd key value);
         match List.hd (read_line conn) with
         | "NOT_FOUND" -> None
@@ -232,21 +232,21 @@ end) = struct
 
     (* External interface *)
 
-    let create () = Cnt.empty nservers
+    let create () = Continuum.empty nservers
 
     let connect cache (hostname, port) =
         let h_addr = (gethostbyname hostname).h_addr_list.(0) in
         let (input, output) = open_connection (ADDR_INET(h_addr, port)) in
         let conn = { input = input; output = output } in
         let () = Gc.finalise connection_finalizer conn in
-        Cnt.add (hostname, port) conn cache
+        Continuum.add (hostname, port) conn cache
 
     let disconnect cache (hostname, port) =
         (* No need to disconnect here since the finalizer will do it. *)
-        Cnt.remove (hostname, port) cache
+        Continuum.remove (hostname, port) cache
 
     let get cache key =
-        let conn = Cnt.connection_for key cache in
+        let conn = Continuum.connection_for key cache in
         write_line conn ("get " ^ key);
         match (read_list read_value conn) with
         | [] -> None
@@ -260,7 +260,7 @@ end) = struct
         store "replace" cache expires key data
 
     let delete cache ?(wait_time = 0) key =
-        let conn = Cnt.connection_for key cache in
+        let conn = Continuum.connection_for key cache in
         write_line conn (sprintf "delete %s %d" key wait_time);
         match read_line conn with
         | ["DELETED"] -> true
@@ -271,7 +271,7 @@ end) = struct
     let decr cache key value = arith "decr" cache key value
 
     let stats cache host =
-        let conn = Cnt.find host cache in
+        let conn = Continuum.find host cache in
         write_line conn "stats";
         read_list read_stat conn
 end
