@@ -62,6 +62,6 @@ value mm_hash2(value data)
 {
     CAMLparam1(data);
     unsigned int h = Murmurhash2(String_val(data),
-                                 Wosize_val(data) * sizeof(int), 0);
+                                 Wosize_val(data) * sizeof(long), 0)
     CAMLreturn(Long_val(h));
 }
