@@ -61,7 +61,7 @@ static unsigned int Murmurhash2(const void *key, int len, unsigned int seed)
 value mm_hash2(value data)
 {
     CAMLparam1(data);
-    unsigned int h = Murmurhash2(String_val(data),
-                                 Wosize_val(data) * sizeof(long), 0)
+    int len = caml_string_length(data);
+    unsigned int h = Murmurhash2(String_val(data), len, 0);
     CAMLreturn(Long_val(h));
 }
