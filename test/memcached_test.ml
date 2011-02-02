@@ -27,6 +27,7 @@ let (|>) x f = f x
 
 let base_port = 11220
 let nservers = 10
+let num_hashkeys = 500
 
 (* Tests for the polymorphic interface *)
 
@@ -183,10 +184,9 @@ let test_pool_store cache =
         | 0 -> []
         | n -> (str ^ str_n, str_n) :: genvalues str (count - 1) in
     List.iter (fun (k, v) -> ignore(Memcached.set cache k v))
-        (genvalues "pool_test" 5000);
+        (genvalues "pool_test" num_hashkeys);
     let nitems = get_stats "curr_items" cache servers in
-    List.iter (fun i ->
-        printf "\n%d" i; "0 items on a server" @? (i > 0)) nitems
+    List.iter (fun i -> "0 items on a server" @? (i > 0)) nitems
 
 let test_removing_server cache =
     let rec genvalues str count =
@@ -194,7 +194,7 @@ let test_removing_server cache =
         match count with
         | 0 -> []
         | n -> (str ^ str_n, str_n) :: genvalues str (count - 1) in
-    let values = genvalues "hash_test" 5000 in
+    let values = genvalues "hash_test" num_hashkeys in
     List.iter (fun (k, v) -> ignore(Memcached.set cache k v)) values;
     let cache = Memcached.disconnect cache (List.hd servers) in
     let read_val cache name =
@@ -203,8 +203,7 @@ let test_removing_server cache =
         | None -> 0 in
     let result = List.map (fun (k, v) -> read_val cache k) values in
     let valid = List.fold_left (+) 0 result in
-    printf "\n%d values still valid" valid;
-    "Too many keys re-hashed" @? (valid > 4000)
+    "Too many keys re-hashed" @? (valid > (num_hashkeys / 5 * 4))
 
 let test_pool = "" >::: [
     "Test server count" >:: (bracket setup_pool test_servers teardown_pool);
