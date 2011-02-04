@@ -13,7 +13,7 @@ install: libinstall
 
 uninstall: libuninstall
 
-check: all
+check:
 	cd test && make
 
 clean-test:

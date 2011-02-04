@@ -26,10 +26,10 @@ open Str
 
 let (|>) x f = f x
 
-(* Tests for the polymorphic interface *)
-
-let setup () =
-  let input = open_in "data/murmur.txt" in
+(* Read a given hash test file. A test file contains pairs of hash key, hash
+ * value pairs; one pair per line, separated by a tab. *)
+let read_test_values hashname =
+  let input = open_in ("data/" ^ hashname ^ ".txt") in
   let read_next input =
     try
       let line = split (regexp "\t") (input_line input) in
@@ -44,19 +44,30 @@ let setup () =
   in
     read_all input
 
-let teardown hashes = ()
-
-let test_murmur hashes =
+(* Apply hashfunc to each key in the list of hashes and ensure that it matches
+ * the hash value *)
+let test_hash hashfunc hashes =
   let test_hash hash =
     let key = fst hash in
     let actual = snd hash in
-    let res = Memcached_hash.murmur key in
-    let err_str = sprintf "hash key: %s, should be %ld, was %ld" key actual res
+    let res = hashfunc key in
+    let err_str = sprintf "key '%s', should be %ld, was %ld" key actual res
     in
     assert_equal ~msg:err_str actual res
   in
   List.iter test_hash hashes
 
+(* Tests start here *)
+
+let test_crc32 () =
+  let hashes = read_test_values "crc32" in
+    test_hash Memcached_hash.crc32 hashes
+
+let test_murmur () =
+  let hashes = read_test_values "murmur" in
+    test_hash Memcached_hash.murmur hashes
+
 let test_hash = "" >::: [
-  "Murmur2 hash" >:: (bracket setup test_murmur teardown)
+  "CRC32" >:: test_crc32;
+  "Murmur2 hash" >:: test_murmur;
 ]
