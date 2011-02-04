@@ -1,5 +1,5 @@
 (*
- * Copyright (c) 2010 Atte Kojo <atte.kojo@gmail.com>
+ * Copyright (c) 2010-2011 Atte Kojo <atte.kojo@gmail.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -90,7 +90,7 @@ val decr: 'v t -> string -> int -> int option
  for details of the statistics returned. *)
 val stats: 'v t -> (string * int) -> (string * string) list
 
-val hash: string -> int
+val hash: string -> int32
 
 (** {2 Functorial interface} *)
 

@@ -3,7 +3,8 @@ export OCAMLDOCFLAGS = -colorize-code -short-functors
 
 ANNOTATE = 1
 LIBS = unix str
-SOURCES = memcached_native.c memcached.mli memcached.ml
+SOURCES = memcached_hash.mli memcached_hash.ml \
+	  memcached.mli memcached.ml
 RESULT = memcached
 
 all: bcl ncl

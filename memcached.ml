@@ -1,5 +1,5 @@
 (*
- * Copyright (c) 2010 Atte Kojo <atte.kojo@gmail.com>
+ * Copyright (c) 2010-2011 Atte Kojo <atte.kojo@gmail.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -24,9 +24,7 @@ open Unix
 open Printf
 open Str
 
-external mm_hash2 : string -> int = "mm_hash2"
-
-let hash = mm_hash2
+let hash = Memcached_hash.murmur
 
 let ws = regexp "[ \t\r\n]+"
 
@@ -71,7 +69,7 @@ module Continuum = struct
     type 'a t = {
         nservers: int;
         connections: 'a ConnMap.t;
-        continuum: (int * 'a) array;
+        continuum: (int32 * 'a) array;
     }
 
     (* Internal functions *)
@@ -80,8 +78,8 @@ module Continuum = struct
             match count with
             | 0 -> []
             | n ->
-                    let hash = mm_hash2 (str ^ string_of_int count) in
-                    hash :: gen_hashes str (count - 1) in
+                    let h = hash (str ^ string_of_int count) in
+                    h :: gen_hashes str (count - 1) in
         let gen_conns (name, port) conn =
             let host = name ^ string_of_int port in
             List.map (fun n -> (n, conn)) (gen_hashes host nservers) in
@@ -137,9 +135,8 @@ module Continuum = struct
                  * instead of calculating the hash *)
                 snd c.continuum.(0)
             else
-                let hash = mm_hash2 key in
                 let cmp v h2 = compare v (fst h2) in
-                let idx = search cmp hash c.continuum in
+                let idx = search cmp (hash key) c.continuum in
                 snd c.continuum.(idx)
 
     let find host c =

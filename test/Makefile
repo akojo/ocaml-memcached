@@ -1,13 +1,13 @@
 export OCAMLMAKEFILE = ../OCamlMakefile
 
 PACKS = oUnit
-LIBS = oUnit str unix ../memcached
+LIBS = oUnit str ../memcached
 INCDIRS = $(shell ocamlfind query oUnit) ..
 LIBDIRS = ..
-SOURCES = memcached_test.ml
+SOURCES = memcached_hash_test.ml memcached_test.ml
 RESULT = memcached_test
 
-all: dc test
+all: nc test
 
 test:
 	./memcached_test

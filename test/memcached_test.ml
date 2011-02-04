@@ -1,5 +1,5 @@
 (*
- * Copyright (c) 2010 Atte Kojo <atte.kojo@gmail.com>
+ * Copyright (c) 2010-2011 Atte Kojo <atte.kojo@gmail.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to deal
@@ -27,7 +27,7 @@ let (|>) x f = f x
 
 let base_port = 11220
 let nservers = 10
-let num_hashkeys = 500
+let num_hashkeys = 100
 
 (* Tests for the polymorphic interface *)
 
@@ -186,7 +186,8 @@ let test_pool_store cache =
     List.iter (fun (k, v) -> ignore(Memcached.set cache k v))
         (genvalues "pool_test" num_hashkeys);
     let nitems = get_stats "curr_items" cache servers in
-    List.iter (fun i -> "0 items on a server" @? (i > 0)) nitems
+    List.iter (fun i ->
+                 printf "%d\n" i; "0 items on a server" @? (i > 0)) nitems
 
 let test_removing_server cache =
     let rec genvalues str count =
@@ -203,7 +204,10 @@ let test_removing_server cache =
         | None -> 0 in
     let result = List.map (fun (k, v) -> read_val cache k) values in
     let valid = List.fold_left (+) 0 result in
-    "Too many keys re-hashed" @? (valid > (num_hashkeys / 5 * 4))
+    let err_str =
+      sprintf "Too many keys re-hashed, valid: %d, should be at least %d"
+        valid (num_hashkeys / 5 * 4) in
+    err_str @? (valid > (num_hashkeys / 5 * 4))
 
 let test_pool = "" >::: [
     "Test server count" >:: (bracket setup_pool test_servers teardown_pool);
@@ -229,7 +233,8 @@ let rec start_servers port nports =
 let all_tests = "Memcached tests" >::: [
     "Polymorphic interface" >: test_poly;
     "Monomorphic interface" >: test_mono;
-    "Server pool" >: test_pool
+    "Server pool" >: test_pool;
+    "Hashing functions" >: Memcached_hash_test.test_hash
     ]
 
 let _ =
