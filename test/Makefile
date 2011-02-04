@@ -16,4 +16,7 @@ test:
 
 .PHONY: test
 
+clean::
+	rm -f *.d *.di
+
 -include $(OCAMLMAKEFILE)
