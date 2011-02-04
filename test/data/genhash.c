@@ -1,3 +1,24 @@
+/*
+ * A tool for generating hash values using functions from libhashkit.
+ *
+ * Takes as its sole argument the name of the hash function to apply to the
+ * input.
+ *
+ * For each input line, calculates the hash value of the line (sans newline)
+ * and outputs the original line and its hash value separated by a tab.
+ *
+ * Surprisingly, this program requires libhashkit (or libmemcached) to work.
+ *
+ * License follows:
+ *
+ * Copyright (c) 2011 Atte Kojo <atte.kojo@gmail.com>
+ *
+ * This program is free software. It comes without any warranty, to
+ * the extent permitted by applicable law. You can redistribute it
+ * and/or modify it under the terms of the Do What The Fuck You Want
+ * To Public License, Version 2, as published by Sam Hocevar. See
+ * http://sam.zoy.org/wtfpl/COPYING for more details.
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
