@@ -34,6 +34,8 @@
  *  - Atte
  *)
 
+open List
+
 (* Some shortcuts for the Int32 arithmetic-logical functions *)
 let (<<:) = Int32.shift_left
 let (>>:) = Int32.shift_right_logical
@@ -41,10 +43,11 @@ let (&:) = Int32.logand
 let (|:) = Int32.logor
 let (^:) = Int32.logxor
 let (~:) = Int32.lognot
+let (+:) = Int32.add
 let ( *:) = Int32.mul
 
 (* Convert a string to a list of integers *)
-let ints_of_string str =
+let int32s_of_string str =
   let rec loop str i len =
     if i == len then []
     else (Int32.of_int (int_of_char str.[i])) :: loop str (i + 1) len
@@ -128,8 +131,50 @@ let crc32 key =
     let idx = Int32.to_int ((crc ^: b) &: 0xffl) in
       (crc >>: 8) ^: crc32tab.(idx)
   in
-  let crc = List.fold_left loop Int32.minus_one (ints_of_string key) in
+  let crc = fold_left loop Int32.minus_one (int32s_of_string key) in
     ((~: crc) >>: 16) &: 0x7fffl
+
+(* FNV hash'es lifted from Dustin Sallings work *)
+let fnv_32_init = 0x811c9dc5l
+let fnv_32_prime = 0x1000193l
+
+let fnv1_32 key =
+  fold_left (fun h b -> (h *: fnv_32_prime) ^: b) fnv_32_init
+    (int32s_of_string key)
+
+let fnv1a_32 key =
+  fold_left (fun h b -> (h ^: b) *: fnv_32_prime) fnv_32_init
+    (int32s_of_string key)
+
+(* Convert a string to a list of 64-bit integers *)
+let int64s_of_string str =
+  let rec loop str i len =
+    if i == len then []
+    else (Int64.of_int (int_of_char str.[i])) :: loop str (i + 1) len
+  in
+    loop str 0 (String.length str)
+
+let fnv_64_init = 0xcbf29ce484222325L
+let fnv_64_prime = 0x100000001b3L
+let ( *!) = Int64.mul
+let ( ^!) = Int64.logxor
+
+let fnv1_64 key =
+  let loop h b = (h *! fnv_64_prime) ^! b in
+    Int64.to_int32 (fold_left loop fnv_64_init (int64s_of_string key))
+
+let fnv1a_64 key =
+  let loop h b = (h ^! b) *! fnv_64_prime in
+    Int64.to_int32 (fold_left loop fnv_64_init (int64s_of_string key))
+
+let md5 key =
+  match int32s_of_string (Digest.string key) with
+    | b0 :: b1 :: b2 :: b3 :: _ ->
+        (b0 &: 0xffl) |:
+        ((b1 &: 0xffl) <<: 8) |:
+        ((b2 &: 0xffl) <<: 16) |:
+        ((b3 &: 0xffl) <<: 24)
+    | _ -> failwith "impossible md5 digest"
 
 (*
  * "Murmur2" hash provided by Austin Appleby, tanjent@gmail.com
@@ -169,9 +214,25 @@ let murmur key =
   (* Initialize the hash to a 'random' value *)
   let h = seed ^: len in
   (* Calculate the hash *)
-  let h = go (ints_of_string key) h in
+  let h = go (int32s_of_string key) h in
   (* Do a few final mixes of the hash to ensure the last few bytes are
    * well-incorporated. *)
   let h = h ^: (h >>: 13) in
   let h = h *: m in
   h ^: (h >>: 15)
+
+(*
+ * This hash is Jenkin's "One at A time Hash".
+ * http://en.wikipedia.org/wiki/Jenkins_hash_function
+ *)
+let one_at_a_time key =
+  let loop value b =
+    let value = value +: b in
+    let value = value +: (value <<: 10) in
+      value ^: (value >>: 6)
+  in
+  let value = List.fold_left loop Int32.zero (int32s_of_string key) in
+  let value = value +: (value <<: 3) in
+  let value = value ^: (value >>: 11) in
+    value +: (value <<: 15)
+

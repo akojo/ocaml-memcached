@@ -63,11 +63,41 @@ let test_crc32 () =
   let hashes = read_test_values "crc32" in
     test_hash Memcached_hash.crc32 hashes
 
+let test_fnv1_32 () =
+  let hashes = read_test_values "fnv1_32" in
+    test_hash Memcached_hash.fnv1_32 hashes
+
+let test_fnv1a_32 () =
+  let hashes = read_test_values "fnv1a_32" in
+    test_hash Memcached_hash.fnv1a_32 hashes
+
+let test_fnv1_64 () =
+  let hashes = read_test_values "fnv1_64" in
+    test_hash Memcached_hash.fnv1_64 hashes
+
+let test_fnv1a_64 () =
+  let hashes = read_test_values "fnv1a_64" in
+    test_hash Memcached_hash.fnv1a_64 hashes
+
+let test_md5 () =
+  let hashes = read_test_values "md5" in
+    test_hash Memcached_hash.md5 hashes
+
 let test_murmur () =
   let hashes = read_test_values "murmur" in
     test_hash Memcached_hash.murmur hashes
 
-let test_hash = "" >::: [
+let test_one_at_a_time () =
+  let hashes = read_test_values "one_at_a_time" in
+    test_hash Memcached_hash.one_at_a_time hashes
+
+let test_hash = "Hashkit" >::: [
   "CRC32" >:: test_crc32;
+  "FNV-1 32-bit" >:: test_fnv1_32;
+  "FNV-1a 32-bit" >:: test_fnv1a_32;
+  "FNV-1 64-bit" >:: test_fnv1_64;
+  "FNV-1a 64-bit" >:: test_fnv1a_64;
+  "MD5" >:: test_md5;
   "Murmur2 hash" >:: test_murmur;
+  "Jenkins one-at-a-time" >:: test_one_at_a_time;
 ]

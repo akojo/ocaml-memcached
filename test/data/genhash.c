@@ -31,7 +31,17 @@ typedef struct {
 
 static hashdesc_t hashfuncs[] = {
     { "crc32", libhashkit_crc32 },
+    { "fnv1_32", libhashkit_fnv1_32 },
+    { "fnv1_64", libhashkit_fnv1_64 },
+    { "fnv1a_32", libhashkit_fnv1a_32 },
+    { "fnv1a_64", libhashkit_fnv1a_64 },
+#ifdef HAVE_HSIEH_HASH
+    { "hsieh", libhashkit_hsieh },
+#endif
+    { "jenkins", libhashkit_jenkins },
+    { "md5", libhashkit_md5 },
     { "murmur", libhashkit_murmur },
+    { "one_at_a_time", libhashkit_one_at_a_time },
 };
 #define NHASHES (sizeof(hashfuncs) / sizeof(hashdesc_t))
 
@@ -42,7 +52,7 @@ static void usage(void)
     printf("Usage: genhash <hashname>\n");
     printf("Available hash functions:\n");
     for (i = 0; i < NHASHES; i++)
-        printf("\t%s\n", hashfuncs[i].name);
+        printf("  * %s\n", hashfuncs[i].name);
 }
 
 int main(int argc, char *argv[])
