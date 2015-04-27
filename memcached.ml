@@ -83,24 +83,24 @@ module Continuum = struct
         let gen_conns (name, port) conn =
             let host = name ^ string_of_int port in
             List.map (fun n -> (n, conn)) (gen_hashes host nservers) in
-        let cmp h1 h2 = compare (fst h1) (fst h2) in
         let conns = ConnMap.fold (fun k v a -> gen_conns k v @ a) map [] in
+        let cmp h1 h2 = Int32.compare (fst h1) (fst h2) in
         Array.of_list (List.sort cmp conns)
 
-    let search cmp v ary = 
-        let len = Array.length ary in
-        let rec binsearch v ary first last =
-            if last <= first then
-                match cmp v ary.(first) with
-                | 1 -> if first == len - 1 then 0 else first + 1
+    let search hash continuum =
+        let len = Array.length continuum in
+        let rec binsearch first last =
+            if first >= last then
+                match Int32.compare hash (fst continuum.(first)) with
+                | 1 -> if first = len - 1 then 0 else first + 1
                 | _ -> first
             else
                 let mid = first + (last - first) / 2 in
-                match cmp v ary.(mid) with
-                | 1 -> binsearch v ary (mid + 1) last
-                | -1 -> binsearch v ary first (mid - 1)
+                match Int32.compare hash (fst continuum.(mid)) with
+                | 1 -> binsearch (mid + 1) last
+                | -1 -> binsearch first (mid - 1)
                 | _ -> mid in
-        binsearch v ary 0 (len - 1)
+        binsearch 0 (len - 1)
 
     (* Public interface *)
     let empty n =
@@ -135,8 +135,7 @@ module Continuum = struct
                  * instead of calculating the hash *)
                 snd c.continuum.(0)
             else
-                let cmp v h2 = compare v (fst h2) in
-                let idx = search cmp (hash key) c.continuum in
+                let idx = search (hash key) c.continuum in
                 snd c.continuum.(idx)
 
     let find host c =
