@@ -27,7 +27,7 @@ let (|>) x f = f x
 
 let base_port = 11220
 let nservers = 10
-let num_hashkeys = 100
+let num_hashkeys = 10000
 
 (* Tests for the polymorphic interface *)
 
