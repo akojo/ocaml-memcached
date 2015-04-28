@@ -39,7 +39,7 @@
 type +'v t
 
 val create: unit -> 'v t
-val connect: 'v t -> (string * int) -> 'v t
+val connect: 'v t -> (string * int) -> 'v t Lwt.t
 val disconnect: 'v t -> (string * int) -> 'v t
 
 (** The main Memcached interface is a pretty much direct translation of the
@@ -47,7 +47,7 @@ val disconnect: 'v t -> (string * int) -> 'v t
 
 (** [Memcached.get cache key] reads a value previously stored with [key] from
  the database. *)
-val get: 'v t -> string -> 'v option
+val get: 'v t -> string -> 'v option Lwt.t
 
 (** The storage functions [set], [add] and [replace] all return [true] if the
  value given as argument was succesfully stored, [false] otherwise. All the
@@ -56,15 +56,15 @@ val get: 'v t -> string -> 'v option
  meaning that the binding never expires. *)
 
 (** [Memcached.set cache key value] binds [value] to [key]. *)
-val set: 'v t -> ?expires:int -> string -> 'v -> bool
+val set: 'v t -> ?expires:int -> string -> 'v -> bool Lwt.t
 
 (** [Memcached.add cache key value] binds [value] to [key] only if there was no
  previous binding for [key]. *)
-val add: 'v t -> ?expires:int -> string -> 'v -> bool
+val add: 'v t -> ?expires:int -> string -> 'v -> bool Lwt.t
 
 (** [Memcached.replace cache key value] binds [value] to [key] only if there was
  a previous binding for [key]. *)
-val replace: 'v t -> ?expires:int -> string -> 'v -> bool
+val replace: 'v t -> ?expires:int -> string -> 'v -> bool Lwt.t
 
 (** [Memcached.delete cache key] removes binding for [key]. Optional [wait_time]
  parameter gives the time in seconds during which the binding will be held in a
@@ -72,23 +72,23 @@ val replace: 'v t -> ?expires:int -> string -> 'v -> bool
  the key will fail. After [wait_time] the binding will be permanently removed.
  By default [wait_time] is 0, meaning that the binding is deleted immediately.
  *)
-val delete: 'v t -> ?wait_time:int -> string -> bool
+val delete: 'v t -> ?wait_time:int -> string -> bool Lwt.t
 
 (** [Memcached.incr cache key amount] will increase the unsigned integer value
  bound to [key] by positive value [amount]. It is an error to give negative
  value to [amount]. *)
-val incr: 'v t -> string -> int -> int option
+val incr: 'v t -> string -> int -> int option Lwt.t
 
 (** [Memcached.decr cache key amount] will decrease the unsigned integer value
  bound to [key] by positive value [amount]. It is an error to give negative
  value to [amount]. If decrementing the value would make it negative, it will be
  limited to [0]. *)
-val decr: 'v t -> string -> int -> int option
+val decr: 'v t -> string -> int -> int option Lwt.t
 
 (** [Memcached.stats cache host port] will return current server statistics for
  [host] as a list of key-value pairs. Consult memcached protocol documentation
  for details of the statistics returned. *)
-val stats: 'v t -> (string * int) -> (string * string) list
+val stats: 'v t -> (string * int) -> (string * string) list Lwt.t
 
 val hash: string -> int32
 
@@ -126,19 +126,19 @@ module type S = sig
     type value
 
     val create: unit -> 'a t
-    val connect: 'a t -> (string * int) -> 'a t
+    val connect: 'a t -> (string * int) -> 'a t Lwt.t
     val disconnect: 'a t -> (string * int) -> 'a t
 
-    val get: 'a t -> string -> value option
-    val set: 'a t -> ?expires:int -> string -> value -> bool
-    val add: 'a t -> ?expires:int -> string -> value -> bool
-    val replace: 'a t -> ?expires:int -> string -> value -> bool
-    val delete: 'a t -> ?wait_time:int -> string -> bool
+    val get: 'a t -> string -> value option Lwt.t
+    val set: 'a t -> ?expires:int -> string -> value -> bool Lwt.t
+    val add: 'a t -> ?expires:int -> string -> value -> bool Lwt.t
+    val replace: 'a t -> ?expires:int -> string -> value -> bool Lwt.t
+    val delete: 'a t -> ?wait_time:int -> string -> bool Lwt.t
 
-    val incr: 'a t -> string -> int -> int option
-    val decr: 'a t -> string -> int -> int option
+    val incr: 'a t -> string -> int -> int option Lwt.t
+    val decr: 'a t -> string -> int -> int option Lwt.t
 
-    val stats: 'a t -> (string * int) -> (string * string) list
+    val stats: 'a t -> (string * int) -> (string * string) list Lwt.t
 end
 
 module Make (Value : Value) : S with type value = Value.t

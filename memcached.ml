@@ -20,7 +20,7 @@
  * THE SOFTWARE.
  *)
 
-open Unix
+open Lwt.Infix
 open Printf
 open Str
 
@@ -41,19 +41,19 @@ module type S = sig
     type value
 
     val create: unit -> 'a t
-    val connect: 'a t -> (string * int) -> 'a t
+    val connect: 'a t -> (string * int) -> 'a t Lwt.t
     val disconnect: 'a t -> (string * int) -> 'a t
 
-    val get: 'a t -> string -> value option
-    val set: 'a t -> ?expires:int -> string -> value -> bool
-    val add: 'a t -> ?expires:int -> string -> value -> bool
-    val replace: 'a t -> ?expires:int -> string -> value -> bool
-    val delete: 'a t -> ?wait_time:int -> string -> bool
+    val get: 'a t -> string -> value option Lwt.t
+    val set: 'a t -> ?expires:int -> string -> value -> bool Lwt.t
+    val add: 'a t -> ?expires:int -> string -> value -> bool Lwt.t
+    val replace: 'a t -> ?expires:int -> string -> value -> bool Lwt.t
+    val delete: 'a t -> ?wait_time:int -> string -> bool Lwt.t
 
-    val incr: 'a t -> string -> int -> int option
-    val decr: 'a t -> string -> int -> int option
+    val incr: 'a t -> string -> int -> int option Lwt.t
+    val decr: 'a t -> string -> int -> int option Lwt.t
 
-    val stats: 'a t -> (string * int) -> (string * string) list
+    val stats: 'a t -> (string * int) -> (string * string) list Lwt.t
 end
 
 (* The data structure holding the key-server mapping, i.e. the continuum. Uses
@@ -151,8 +151,8 @@ module Memcached_impl (Value : sig
 end) = struct
 
     type connection = {
-        input: in_channel;
-        output: out_channel;
+        input: Lwt_io.input_channel;
+        output: Lwt_io.output_channel;
     }
 
     type 'a t = connection Continuum.t
@@ -163,79 +163,85 @@ end) = struct
      * server *)
 
     let write_line conn line =
-        output_string conn.output (line ^ "\r\n");
-        flush conn.output
+        Lwt_io.write conn.output (line ^ "\r\n")
 
     let read_line conn =
-        let result = split ws (input_line conn.input) in
-        match result with
-        | ["ERROR"] | "CLIENT_ERROR" :: _ | "SERVER_ERROR" :: _ ->
+        Lwt_io.read_line conn.input
+        >>= fun line -> match split ws line with
+        | ["ERROR"] | "CLIENT_ERROR" :: _ | "SERVER_ERROR" :: _ as result ->
                 failwith (String.concat " " result)
-        | response -> response
+        | response -> Lwt.return response
 
     let read_value conn =
-        match read_line conn with
-        | ["VALUE"; key; flags; bytes] -> 
-                let len = int_of_string bytes in
-                let buf = String.create len in
-                ignore(really_input conn.input buf 0 len);
-                (* Memcached always sends a "\r\n" after real data *)
-                ignore(input_line conn.input);
-                Some buf
-        | ["END"] -> None
-        | _ -> failwith "read_value"
+        read_line conn
+        >>= function
+            | ["VALUE"; key; flags; bytes] -> 
+                    let len = int_of_string bytes in
+                    let buf = Bytes.create len in
+                    Lwt_io.read_into_exactly conn.input buf 0 len
+                    (* Memcached always sends a "\r\n" after real data *)
+                    >>= fun () -> Lwt_io.read_line conn.input
+                    >|= fun _ -> Some buf
+            | ["END"] -> Lwt.return None
+            | _ -> failwith "read_value"
 
     let read_stat conn =
-        match read_line conn with
-        | ["STAT"; stat; value] -> Some (stat, value)
-        | ["END"] -> None
-        | _ -> failwith "read_stat"
+        read_line conn
+        >|= function
+            | ["STAT"; stat; value] -> Some (stat, value)
+            | ["END"] -> None
+            | _ -> failwith "read_stat"
 
-    let rec read_list f conn =
-        match f conn with
-        | Some value -> value :: (read_list f conn)
-        | None -> []
+    let read_list f conn =
+        let rec loop values =
+            f conn
+            >>= function
+                | Some value -> loop (value :: values)
+                | None -> Lwt.return values
+        in
+        loop []
 
     let store cmd cache expires key data =
         let conn = Continuum.connection_for key cache in
         let datastr = Value.to_string data in
         let len = String.length datastr in
-        write_line conn (sprintf "%s %s 0 %d %d" cmd key expires len);
-        write_line conn datastr;
-        let line = try
-            read_line conn
-        with ex ->
-            (* Consume second error response caused by sending a data string
-             * after an invalid command, and then re-raise original exception *)
-            ignore(read_line conn);
-            raise ex in
-        match line with
-        | ["STORED"] -> true
-        | ["NOT_STORED"] -> false
-        | _ -> failwith cmd
+        write_line conn (sprintf "%s %s 0 %d %d" cmd key expires len)
+        >>= fun () -> write_line conn datastr
+        >>= fun () -> Lwt.catch
+        (fun _ -> read_line conn)
+        (* Consume second error response caused by sending a data string
+         * after an invalid command, and then re-raise original exception *)
+        (fun ex -> read_line conn >>= fun _ -> raise ex)
+        >|= function
+            | ["STORED"] -> true
+            | ["NOT_STORED"] -> false
+            | _ -> failwith cmd
 
     let arith cmd cache key value =
         let conn = Continuum.connection_for key cache in
-        write_line conn (sprintf "%s %s %d" cmd key value);
-        match List.hd (read_line conn) with
-        | "NOT_FOUND" -> None
-        | v -> Some (int_of_string v)
+        write_line conn (sprintf "%s %s %d" cmd key value)
+        >>= fun () -> read_line conn >|= List.hd
+        >|= function
+            | "NOT_FOUND" -> None
+            | v -> Some (int_of_string v)
 
     (* Finalizer for the server structures. Shuts down the connection when the
      * structure is being collected by the GC. *)
 
-    let connection_finalizer connection = shutdown_connection connection.input
+    let connection_finalizer connection = Lwt_main.run (Lwt_io.close connection.input)
 
     (* External interface *)
 
     let create () = Continuum.empty nservers
 
     let connect cache (hostname, port) =
-        let h_addr = (gethostbyname hostname).h_addr_list.(0) in
-        let (input, output) = open_connection (ADDR_INET(h_addr, port)) in
-        let conn = { input = input; output = output } in
-        let () = Gc.finalise connection_finalizer conn in
-        Continuum.add (hostname, port) conn cache
+        Lwt_unix.gethostbyname hostname
+        >>= fun hostinfo -> let h_addr = hostinfo.Lwt_unix.h_addr_list.(0) in
+        Lwt_io.open_connection (Lwt_unix.ADDR_INET(h_addr, port))
+        >|= fun (input, output) ->
+            let conn = { input = input; output = output } in
+            let () = Gc.finalise connection_finalizer conn in
+            Continuum.add (hostname, port) conn cache
 
     let disconnect cache (hostname, port) =
         (* No need to disconnect here since the finalizer will do it. *)
@@ -243,10 +249,11 @@ end) = struct
 
     let get cache key =
         let conn = Continuum.connection_for key cache in
-        write_line conn ("get " ^ key);
-        match (read_list read_value conn) with
-        | [] -> None
-        | values -> Some (Value.of_string (List.hd values))
+        write_line conn ("get " ^ key)
+        >>= fun () -> read_list read_value conn
+        >|= function
+            | [] -> None
+            | values -> Some (Value.of_string (List.hd values))
 
     let set cache ?(expires = 0) key data =
         store "set" cache expires key data
@@ -257,19 +264,20 @@ end) = struct
 
     let delete cache ?(wait_time = 0) key =
         let conn = Continuum.connection_for key cache in
-        write_line conn (sprintf "delete %s %d" key wait_time);
-        match read_line conn with
-        | ["DELETED"] -> true
-        | ["NOT_FOUND"] -> false
-        | _ -> failwith "delete"
+        write_line conn (sprintf "delete %s %d" key wait_time)
+        >>= fun () -> read_line conn
+        >|= function
+            | ["DELETED"] -> true
+            | ["NOT_FOUND"] -> false
+            | _ -> failwith "delete"
 
     let incr cache key value = arith "incr" cache key value
     let decr cache key value = arith "decr" cache key value
 
     let stats cache host =
         let conn = Continuum.find host cache in
-        write_line conn "stats";
-        read_list read_stat conn
+        write_line conn "stats"
+        >>= fun () -> read_list read_stat conn
 end
 
 module Make (Value : Value) = struct

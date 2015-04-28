@@ -1,6 +1,6 @@
 export OCAMLMAKEFILE = ../OCamlMakefile
 
-PACKS = oUnit
+PACKS = oUnit lwt lwt.unix
 LIBS = oUnit str
 INCDIRS = $(shell ocamlfind query oUnit) ..
 SOURCES = ../memcached_hash.mli ../memcached_hash.ml \
@@ -17,6 +17,6 @@ test:
 .PHONY: test
 
 clean::
-	rm -f *.d *.di
+	rm -f *.d *.di *.cache
 
 -include $(OCAMLMAKEFILE)
