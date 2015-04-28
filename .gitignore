@@ -1,0 +1,12 @@
+*.a
+*.annot
+*.cma
+*.cmi
+*.cmo
+*.cmx
+*.cmxa
+*.o
+*.d
+*.di
+*.cache
+test/memcached_test
