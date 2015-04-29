@@ -131,6 +131,7 @@ end) = struct
     type connection = {
         input: Lwt_io.input_channel;
         output: Lwt_io.output_channel;
+        mutex: Lwt_mutex.t;
     }
 
     type 'a t = connection Continuum.t
@@ -181,27 +182,33 @@ end) = struct
 
     let store cmd cache expires key data =
         let conn = Continuum.connection_for key cache in
-        let datastr = Value.to_string data in
-        let len = String.length datastr in
-        write_line conn (sprintf "%s %s 0 %d %d" cmd key expires len)
-        >>= fun () -> write_line conn datastr
-        >>= fun () -> Lwt.catch
-        (fun _ -> read_line conn)
-        (* Consume second error response caused by sending a data string
-         * after an invalid command, and then re-raise original exception *)
-        (fun ex -> read_line conn >>= fun _ -> raise ex)
-        >|= function
-            | ["STORED"] -> true
-            | ["NOT_STORED"] -> false
-            | _ -> failwith cmd
+        let do_store () =
+            let datastr = Value.to_string data in
+            let len = String.length datastr in
+            write_line conn (sprintf "%s %s 0 %d %d" cmd key expires len)
+            >>= fun () -> write_line conn datastr
+            >>= fun () -> Lwt.catch
+            (fun _ -> read_line conn)
+            (* Consume second error response caused by sending a data string
+             * after an invalid command, and then re-raise original exception *)
+            (fun ex -> read_line conn >>= fun _ -> raise ex)
+            >|= function
+                | ["STORED"] -> true
+                | ["NOT_STORED"] -> false
+                | _ -> failwith cmd
+        in
+        Lwt_mutex.with_lock conn.mutex do_store
 
     let arith cmd cache key value =
         let conn = Continuum.connection_for key cache in
-        write_line conn (sprintf "%s %s %d" cmd key value)
-        >>= fun () -> read_line conn >|= List.hd
-        >|= function
-            | "NOT_FOUND" -> None
-            | v -> Some (int_of_string v)
+        let do_arith () =
+            write_line conn (sprintf "%s %s %d" cmd key value)
+            >>= fun () -> read_line conn >|= List.hd
+            >|= function
+                | "NOT_FOUND" -> None
+                | v -> Some (int_of_string v)
+        in
+        Lwt_mutex.with_lock conn.mutex do_arith
 
     (* Finalizer for the server structures. Shuts down the connection when the
      * structure is being collected by the GC. *)
@@ -217,7 +224,7 @@ end) = struct
         >>= fun hostinfo -> let h_addr = hostinfo.Lwt_unix.h_addr_list.(0) in
         Lwt_io.open_connection (Lwt_unix.ADDR_INET(h_addr, port))
         >|= fun (input, output) ->
-            let conn = { input = input; output = output } in
+            let conn = { input = input; output = output; mutex = Lwt_mutex.create () } in
             let () = Gc.finalise connection_finalizer conn in
             Continuum.add (hostname, port) conn cache
 
@@ -227,11 +234,14 @@ end) = struct
 
     let get cache key =
         let conn = Continuum.connection_for key cache in
-        write_line conn ("get " ^ key)
-        >>= fun () -> read_list read_value conn
-        >|= function
-            | [] -> None
-            | values -> Some (Value.of_string (List.hd values))
+        let do_get () =
+            write_line conn ("get " ^ key)
+            >>= fun () -> read_list read_value conn
+            >|= function
+                | [] -> None
+                | values -> Some (Value.of_string (List.hd values))
+        in
+        Lwt_mutex.with_lock conn.mutex do_get
 
     let set cache ?(expires = 0) key data =
         store "set" cache expires key data
@@ -242,20 +252,26 @@ end) = struct
 
     let delete cache ?(wait_time = 0) key =
         let conn = Continuum.connection_for key cache in
-        write_line conn (sprintf "delete %s %d" key wait_time)
-        >>= fun () -> read_line conn
-        >|= function
-            | ["DELETED"] -> true
-            | ["NOT_FOUND"] -> false
-            | _ -> failwith "delete"
+        let do_delete () =
+            write_line conn (sprintf "delete %s %d" key wait_time)
+            >>= fun () -> read_line conn
+            >|= function
+                | ["DELETED"] -> true
+                | ["NOT_FOUND"] -> false
+                | _ -> failwith "delete"
+        in
+        Lwt_mutex.with_lock conn.mutex do_delete
 
     let incr cache key value = arith "incr" cache key value
     let decr cache key value = arith "decr" cache key value
 
     let stats cache host =
         let conn = Continuum.find host cache in
-        write_line conn "stats"
-        >>= fun () -> read_list read_stat conn
+        let do_stats () =
+            write_line conn "stats"
+            >>= fun () -> read_list read_stat conn
+        in
+        Lwt_mutex.with_lock conn.mutex do_stats
 end
 
 module Make (Value : Value) = struct
