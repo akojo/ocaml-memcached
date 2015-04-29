@@ -44,77 +44,51 @@ module Continuum = struct
     end
     module ConnMap = Map.Make(ConnKey)
 
+    type 'a value = {
+        hash: int32;
+        value: 'a;
+    }
+
     type 'a t = {
-        nservers: int;
         connections: 'a ConnMap.t;
-        continuum: (int32 * 'a) array;
+        continuum: 'a value array;
     }
 
     (* Internal functions *)
-    let create map nservers =
-        let rec gen_hashes str count =
-            match count with
-            | 0 -> []
-            | n ->
-                    let h = hash (str ^ string_of_int count) in
-                    h :: gen_hashes str (count - 1) in
-        let gen_conns (name, port) conn =
-            let host = name ^ string_of_int port in
-            List.map (fun n -> (n, conn)) (gen_hashes host nservers) in
-        let conns = ConnMap.fold (fun k v a -> gen_conns k v @ a) map [] in
-        let cmp h1 h2 = Int32.compare (fst h1) (fst h2) in
+    let create map =
+        let gen_hash (name, port) =
+            hash (name ^ string_of_int port)
+        in
+        let conns = ConnMap.fold (fun k v a -> { hash = gen_hash k; value =  v} :: a) map [] in
+        let cmp h1 h2 = Int32.compare h1.hash h2.hash in
         Array.of_list (List.sort cmp conns)
 
     let search hash continuum =
-        let len = Array.length continuum in
         let rec binsearch first last =
-            if first >= last then
-                match Int32.compare hash (fst continuum.(first)) with
-                | 1 -> if first = len - 1 then 0 else first + 1
-                | _ -> first
+            if first = last then
+                continuum.(first).value
             else
                 let mid = first + (last - first) / 2 in
-                match Int32.compare hash (fst continuum.(mid)) with
+                match Int32.compare hash continuum.(mid).hash with
                 | 1 -> binsearch (mid + 1) last
-                | -1 -> binsearch first (mid - 1)
-                | _ -> mid in
-        binsearch 0 (len - 1)
+                | -1 -> binsearch first mid
+                | _ -> continuum.(mid).value
+        in
+        binsearch 0 (Array.length continuum - 1)
 
     (* Public interface *)
-    let empty n =
-        {
-            nservers = n;
-            connections = ConnMap.empty;
-            continuum = [||];
-        }
+    let empty = { connections = ConnMap.empty; continuum = [||]; }
 
     let add host connection c =
         let new_connections = ConnMap.add host connection c.connections in
-        {
-            nservers = c.nservers;
-            connections = new_connections;
-            continuum = create new_connections c.nservers
-        }
+        { connections = new_connections; continuum = create new_connections }
 
     let remove host c =
         let new_connections = ConnMap.remove host c.connections in
-        {
-            nservers = c.nservers;
-            connections = new_connections;
-            continuum = create new_connections c.nservers
-        }
+        { connections = new_connections; continuum = create new_connections }
 
     let connection_for key c =
-        if (ConnMap.is_empty c.connections) then
-            failwith "No servers"
-        else
-            if Array.length c.continuum = c.nservers then
-                (* There's only one server in the continuum, just use it
-                 * instead of calculating the hash *)
-                snd c.continuum.(0)
-            else
-                let idx = search (hash key) c.continuum in
-                snd c.continuum.(idx)
+        search (hash key) c.continuum
 
     let find host c =
         ConnMap.find host c.connections
@@ -135,8 +109,6 @@ end) = struct
     }
 
     type 'a t = connection Continuum.t
-
-    let nservers = 200
 
     (* Internal helper functions for handling communications with the memcached
      * server *)
@@ -217,7 +189,7 @@ end) = struct
 
     (* External interface *)
 
-    let create () = Continuum.empty nservers
+    let create () = Continuum.empty
 
     let connect cache (hostname, port) =
         Lwt_unix.gethostbyname hostname

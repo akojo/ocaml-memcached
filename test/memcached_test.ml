@@ -27,7 +27,7 @@ let assert_raises_lwt ex f =
         | Success -> assert_failure "No exception was raised"
 
 let test_no_servers cache =
-    let ex = Failure "No servers" in
+    let ex = Invalid_argument "index out of bounds" in
     let test () = Memcached.get (Memcached.create ()) "key" in
     assert_raises ex test
 
