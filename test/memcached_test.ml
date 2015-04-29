@@ -70,7 +70,7 @@ let test_delete_nonexistent cache =
     Memcached.delete cache "nonexistent" >|= assert_equal false
 
 let test_add cache =
-    Memcached.delete cache "key" >|= ignore
+    Memcached.delete cache "key" >|= assert_equal false
     >>= fun () ->
     Memcached.add cache "key" "value" >|= assert_equal true
 
@@ -89,7 +89,7 @@ let test_replace cache =
     Memcached.get cache "key" >|= assert_equal (Some "other_value")
 
 let test_replace_nonexistent cache =
-    Memcached.delete cache "key" >|= ignore
+    Memcached.delete cache "key" >|= assert_equal true
     >>= fun () ->
     Memcached.replace cache "key" "value" >|= assert_equal false
 
@@ -189,7 +189,7 @@ let test_pool_store cache =
         match count with
         | 0 -> []
         | n -> (str ^ str_n, str_n) :: genvalues str (count - 1) in
-    Lwt_list.iter_p (fun (k, v) -> Memcached.set cache k v >|= ignore)
+    Lwt_list.iter_p (fun (k, v) -> Memcached.set cache k v >|= assert_equal true)
         (genvalues "pool_test" num_hashkeys)
     >>= fun () ->
     get_stats "curr_items" cache servers
@@ -208,7 +208,8 @@ let test_removing_server cache =
         | Some v -> 1
         | None -> 0 in
     let values = genvalues "hash_test" num_hashkeys in
-    Lwt_list.iter_p (fun (k, v) -> Memcached.set cache k v >|= ignore) values
+    Lwt_list.iter_p (fun (k, v) -> Memcached.set cache k v >|= assert_equal true)
+      (genvalues "hash_test" num_hashkeys)
     >>= fun () ->
     let cache = Memcached.disconnect cache (List.hd servers) in
     Lwt_list.map_s (fun (k, v) -> read_val cache k) values
