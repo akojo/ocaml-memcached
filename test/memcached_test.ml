@@ -211,7 +211,7 @@ let test_removing_server cache =
       (genvalues "hash_test" num_hashkeys)
     >>= fun () ->
     let cache = Memcached.disconnect cache (List.hd servers) in
-    Lwt_list.map_s (fun (k, v) -> read_val cache k) values
+    Lwt_list.map_p (fun (k, v) -> read_val cache k) values
     >|= fun result ->
     let valid = List.fold_left (+) 0 result in
     let err_str =
