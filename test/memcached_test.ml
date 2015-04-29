@@ -1,5 +1,4 @@
 open Lwt.Infix
-open Printf
 open OUnit
 
 let (|>) x f = f x
@@ -194,7 +193,7 @@ let test_pool_store cache =
     >>= fun () ->
     get_stats "curr_items" cache servers
     >|= fun items ->
-    List.iter (fun i -> printf "%d\n" i; "0 items on a server" @? (i > 0)) items
+    List.iter (fun i -> Lwt_io.printf "%d\n" i; "0 items on a server" @? (i > 0)) items
 
 let test_removing_server cache =
     let rec genvalues str count =
@@ -216,7 +215,7 @@ let test_removing_server cache =
     >|= fun result ->
     let valid = List.fold_left (+) 0 result in
     let err_str =
-      sprintf "Too many keys re-hashed, valid: %d, should be at least %d"
+      Printf.sprintf "Too many keys re-hashed, valid: %d, should be at least %d"
         valid (num_hashkeys / 5 * 4) in
     err_str @? (valid > (num_hashkeys / 5 * 4))
 
