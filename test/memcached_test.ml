@@ -193,7 +193,7 @@ let test_pool_store cache =
     >>= fun () ->
     get_stats "curr_items" cache servers
     >|= fun items ->
-    List.iter (fun i -> Lwt_io.printf "%d\n" i; "0 items on a server" @? (i > 0)) items
+    List.iter (fun i -> ignore (Lwt_io.printf "%d\n" i); "0 items on a server" @? (i > 0)) items
 
 let test_removing_server cache =
     let rec genvalues str count =
