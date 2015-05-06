@@ -7,7 +7,7 @@ let (|>) x f = f x
 (* Read a given hash test file. A test file contains pairs of hash key, hash
  * value pairs; one pair per line, separated by a tab. *)
 let read_test_values hashname =
-  let input = open_in ("data/" ^ hashname ^ ".txt") in
+  let input = open_in ("test/data/" ^ hashname ^ ".txt") in
   let read_next input =
     try
       let line = split (regexp "\t") (input_line input) in

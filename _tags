@@ -1,0 +1,5 @@
+<**/*.ml> or <**/*.mli>: package(lwt)
+<**/*.byte> or <**/*.native>: package(lwt), package(lwt.unix), package(str)
+
+<test/*.ml> or <test/*.mli>: package(oUnit)
+"test/memcached_test.native" or "test/memcached_test.byte": package(oUnit)

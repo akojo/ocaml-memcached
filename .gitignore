@@ -1,12 +1,3 @@
-*.a
-*.annot
-*.cma
-*.cmi
-*.cmo
-*.cmx
-*.cmxa
-*.o
-*.d
-*.di
-*.cache
-test/memcached_test
+memcached_test.byte
+memcached_test.native
+_build
