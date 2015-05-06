@@ -2,9 +2,38 @@
 
 Memcached is a pure-OCaml memcached client library, with a selection of hashing algorithms compatible with libhashkit from http://libmemcached.org.
 
+## Building the library
+
+The library uses `ocamlbuild`, so you can build the bytecode and native versions
+of the library and the library archives by issuing the following command:
+
+```sh
+$ ocamlbuild -use-ocamlfind memcached.cma memcached.cmxa
+```
+
+### Running the tests
+
+To run the tests:
+
+```sh
+$ ocamlbuild -use-ocamlfind test/memcached_test.native --
+```
+
+and similarly for the bytecode version (use `.byte`).
+
+Note that the tests use the library against and a number of actual memcached
+servers running locally, so you need to hhave memcached installed and in your
+path to run the tests.
+
 ## Using the library
 
 The library provides two interfaces, like most of the standard library data structures, for accessing memcached servers. For quick-and-dirty testing and simple applications you can use the polymorphic interface, which uses standard library Marshal module for (de-)serializing the values. All the caveats of Marshal apply.
+
+The library uses `Lwt` to provide an asynchronous interface for its clients so
+that you can query memcached servers asynchronously, and if you are connected to
+more than one server you can even run multiple requests in parallel. The library
+takes internally care of running parallel requests going to each server
+sequentially.
 
 To initialize an instance of the client and connect it to a server:
 
@@ -15,40 +44,59 @@ let cache = Memcached.connect (Memcached.create ()) ("localhost", 11211)
 Then you can write and read back values to/from the cache:
 
 ```ocaml
-Memcached.set cache "value" 42 (* returns true or false depending on whether storing was succesful *)
-Memcached.set cache "tuple" ("ramanujan"; 1729)
+open Lwt.Infix
 
-(* get returns 'a option for easy testing of whether there was a value stored for given key *)
-let ans = match Memcached.get cache "value" with
-    | Some v -> v
-    | None -> -1
-let res = match Memcached.get cache "tuple" with
-    | Some (s, n) when n = 1729 -> true
-    | _ -> false
+cache
+>>= fun cache ->
+Memcached.set cache "value" "42"
+>>= fun _ -> (* returns true or false depending on whether storing was succesful *)
+Memcached.get cache "value"
+>|= function
+    | Some value -> Lwt_io.printf "%s\n" value
+    | None -> Lwt_io.printf "'value' not found\n"
+```
+
+or for any other OCaml value
+```
+open Lwt.Infix
+
+cache >>= fun cache ->
+Memcached.set cache "tuple" ("ramanujan", 1729)
+>>= fun _ ->
+Memcached.get cache "tuple"
+>|= function
+    | Some (s, n) -> Lwt_io.printf "(%s, %d)\n" s n
+    | None -> Lwt_io.print "'tuple' not found\n"
 ```
 
 The parametrized interface allows you to define the type of the values to store in the cache and the functions for serialization and de-serialization:
 
 ```ocaml
-module I = struct
+open Lwt.Infix
+
+module IntCache = Memcached.Make(struct
   type t = int
   let to_string = string_of_int
   let of_string = int_of_string
-end
+end)
 
-module IntCache = Memcached.Make(I)
-
-let icache = IntCache.connect (IntCache.create ()) ("localhost", 11211)
-
-let res = IntCache.set icache "perfect" 28
-let ans = match IntCache.get icache "perfect" with
-  | Some n when n = 28 -> true
-  | _ -> false
+IntCache.connect (IntCache.create ()) ("localhost", 11211)
+>>= fun icache ->
+IntCache.set icache "perfect" 28
+>>= fun _ ->
+IntCache.get icache "perfect"
+>|= function
+    | Some n when n = 28 -> Lwt_io.printf "%d is perfect\n" n
+    | _ -> Lwt_io.printf "No perfect numbers in the cache\n"
 ```
 
 ## Connecting to multiple servers
 
-The interface for connecting to multiple servers has been written in a purely applicative style, meaning that everytime you connect or disconnect a server, a new cache instance is returned. This way you can (dis)connect servers willy-nilly without fear of unexpected cache misses in some other part of your code.
+The interface for connecting to multiple servers has been written in a purely
+applicative style, meaning that everytime you connect or disconnect a server, a
+new cache (`Lwt.t`) instance is returned. This way you can (dis)connect servers
+willy-nilly without fear of unexpected cache misses in some other part of your
+code.
 
 The library also takes care of shutting down the server connections whenever they're no longer referenced.
 
@@ -68,7 +116,7 @@ let servers = [
 
 let setup server_list =
   let cache = Memcached.create () in
-  List.fold_left (fun c server -> Memcached.connect c server) cache server_list
+  Lwt_list.fold_left_s (fun c server -> Memcached.connect c server) cache server_list
 
 let big_cache = setup servers
 ```
