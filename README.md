@@ -57,7 +57,8 @@ Memcached.get cache "value"
 ```
 
 or for any other OCaml value
-```
+
+```ocaml
 open Lwt.Infix
 
 cache >>= fun cache ->
