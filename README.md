@@ -22,7 +22,7 @@ $ ocamlbuild -use-ocamlfind test/memcached_test.native --
 and similarly for the bytecode version (use `.byte`).
 
 Note that the tests use the library against and a number of actual memcached
-servers running locally, so you need to hhave memcached installed and in your
+servers running locally, so you need to have memcached installed and in your
 path to run the tests.
 
 ## Using the library
